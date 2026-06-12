@@ -1,5 +1,53 @@
 # RASTER
 
+## 🚀 Quick Start: Download Data and Workloads
+
+RASTER experiments use released base-vector datasets plus generated
+order-range query workloads. The public data archive is hosted here:
+
+```text
+https://cloud.tsinghua.edu.cn/d/05dab9941ca9418e8894/
+```
+
+After cloning this repository, use the downloader script to fetch only the
+datasets you need. It downloads split archives, verifies SHA256 checksums,
+extracts them, and validates that the base vectors and all 33 workloads are
+present.
+
+```bash
+git clone https://github.com/ncuJack12/RASTER.git
+cd RASTER
+
+# Show available datasets and archive sizes.
+scripts/download_raster_data.sh --list
+
+# Download one dataset and its workloads.
+scripts/download_raster_data.sh msong
+
+# Download multiple selected datasets.
+scripts/download_raster_data.sh msong sift glove-100
+
+# Download all 11 released datasets and workloads.
+scripts/download_raster_data.sh --all
+```
+
+The extracted layout matches the benchmark defaults:
+
+```text
+data/<dataset>/...
+generated_queries/order_range_raw_attr/<dataset>/<workload>/
+```
+
+To verify an already-downloaded dataset without downloading again:
+
+```bash
+scripts/download_raster_data.sh --verify-only msong
+```
+
+The script requires `curl`, `python3`, `zstd`, `tar`, `sha256sum`, and `stat`.
+
+## 🧭 Overview
+
 RASTER is a GPU implementation of ordered range-filtered approximate nearest
 neighbor search built inside the RAPIDS cuVS C++ codebase. It extends CAGRA with
 a segment-tree index over ordered vector ids. A query consists of a vector and an
@@ -10,7 +58,7 @@ reusable segment-tree node stores graph edges and lightweight local-to-global
 metadata, so local graph search can return global vector ids without replicating
 the high-dimensional vector table across nodes.
 
-## Algorithm
+## 🧩 Algorithm
 
 RASTER handles each ordered range query in three stages:
 
@@ -33,7 +81,7 @@ The main implementation supports three tuning axes:
 All benchmark rows report `filter_violations`; a valid range-filtered result
 must have `filter_violations == 0`.
 
-## Code Layout
+## 🗂️ Code Layout
 
 Core implementation:
 
@@ -76,7 +124,7 @@ results/range_cagra/collect_a100_paper_results.py
 The `results/range_cagra` directory is configured to keep scripts in git while
 ignoring generated benchmark output trees.
 
-## Requirements
+## 🛠️ Requirements
 
 RASTER is part of a cuVS source tree, so it uses the normal cuVS build
 dependencies:
@@ -91,7 +139,7 @@ dependencies:
 For a fresh environment, follow the cuVS dependency setup for this checkout
 first, then build the targets below.
 
-## Build
+## 🔨 Build
 
 From the repository root, build cuVS and tests with the repo build script:
 
@@ -114,7 +162,7 @@ library directory and the active conda environment first:
 export LD_LIBRARY_PATH="$PWD/cpp/build:$PWD/cpp/build/_deps/rmm-build:${CONDA_PREFIX:-}/lib:${CONDA_PREFIX:-}/targets/x86_64-linux/lib:${LD_LIBRARY_PATH:-}"
 ```
 
-## Test
+## ✅ Test
 
 Run the focused synthetic tests:
 
@@ -132,7 +180,7 @@ cpp/build/gtests/NEIGHBORS_RANGE_CAGRA_SEGMENT_TREE_TEST
 The optional RFANN workload smoke test is skipped unless data and workload
 paths are available.
 
-## Data Layout
+## 📦 Data Layout
 
 Benchmark scripts expect dense base vectors and generated order-range workloads
 under these default roots:
@@ -178,7 +226,7 @@ already-downloaded layout without downloading again:
 scripts/download_raster_data.sh --verify-only msong
 ```
 
-## Run A Workload Benchmark
+## 🧪 Run A Workload Benchmark
 
 The shell harness runs the segment-tree benchmark executable and records
 `summary.csv`, `sweep_summary.csv`, `phase_gpu_summary.csv`, `result_lines.csv`,
@@ -220,7 +268,7 @@ Each search sweep item has the form:
 itopk_size:graph_iterations:search_width:entry_count
 ```
 
-## Run A Parameter Sweep
+## 📈 Run A Parameter Sweep
 
 Use the Python driver to build each dataset/config once and sweep workloads and
 search settings in the same process:
@@ -273,7 +321,7 @@ Useful output files:
 | `aggregate_summary.csv` | Per-task summaries |
 | `aggregate_phase_gpu.csv` | GPU memory/utilization samples |
 
-## Paper-Scale Suite
+## 📚 Paper-Scale Suite
 
 The full-suite generator is:
 
@@ -306,7 +354,7 @@ python3 results/range_cagra/collect_a100_paper_results.py \
   --thresholds '0.90 0.95 0.98 0.99'
 ```
 
-## Notes
+## 📝 Notes
 
 - Query ranges use zero-based inclusive ids `[L, R]`.
 - Rows with nonzero `filter_violations` are invalid and should be excluded.
