@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOTFS=${A100_CHROOT_ROOTFS:-/rpool/data/subvol-125-disk-0}
-WJY_SRC=${A100_CHROOT_WJY_SRC:-/hdZFS/subvol-125-disk-1}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+HOST_REPO=${A100_CHROOT_REPO:-$(cd -- "$SCRIPT_DIR/.." && pwd)}
+ROOTFS=${A100_CHROOT_ROOTFS:-}
+CHROOT_WORKDIR=${A100_CHROOT_WORKDIR:-/workspace/RASTER}
+CHROOT_CONDA_PREFIX=${A100_CHROOT_CONDA_PREFIX:-}
+
+if [[ -z "$ROOTFS" ]]; then
+  echo "set A100_CHROOT_ROOTFS to the chroot rootfs path" >&2
+  exit 2
+fi
 
 if [[ $# -eq 0 ]]; then
   echo "usage: $0 <command> [args...]" >&2
@@ -14,10 +22,13 @@ set -euo pipefail
 mount --make-rprivate /
 
 ROOTFS=$1
-WJY_SRC=$2
-shift 2
+HOST_REPO=$2
+CHROOT_WORKDIR=$3
+CHROOT_CONDA_PREFIX=$4
+shift 4
 
-mount --bind "$WJY_SRC" "$ROOTFS/wjy"
+mkdir -p "$ROOTFS$CHROOT_WORKDIR"
+mount --bind "$HOST_REPO" "$ROOTFS$CHROOT_WORKDIR"
 mount --rbind /dev "$ROOTFS/dev"
 mount --rbind /proc "$ROOTFS/proc"
 mount --rbind /sys "$ROOTFS/sys"
@@ -25,9 +36,14 @@ mount --bind /tmp "$ROOTFS/tmp"
 
 exec chroot "$ROOTFS" /bin/bash -lc "
 set -euo pipefail
-export PATH=/wjy/conda-envs/cuvs-build-129/bin:/usr/local/cuda/bin:/usr/bin:/bin:\${PATH:-}
-export LD_LIBRARY_PATH=/wjy/conda-envs/cuvs-build-129/lib:/wjy/conda-envs/cuvs-build-129/targets/x86_64-linux/lib:/usr/lib/x86_64-linux-gnu:\${LD_LIBRARY_PATH:-}
-cd /wjy/cuvs
+if [[ -n \"$CHROOT_CONDA_PREFIX\" ]]; then
+  export PATH=\"$CHROOT_CONDA_PREFIX/bin:/usr/local/cuda/bin:/usr/bin:/bin:\${PATH:-}\"
+  export LD_LIBRARY_PATH=\"$CHROOT_CONDA_PREFIX/lib:$CHROOT_CONDA_PREFIX/targets/x86_64-linux/lib:/usr/lib/x86_64-linux-gnu:\${LD_LIBRARY_PATH:-}\"
+else
+  export PATH=/usr/local/cuda/bin:/usr/bin:/bin:\${PATH:-}
+  export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:\${LD_LIBRARY_PATH:-}
+fi
+cd \"$CHROOT_WORKDIR\"
 exec \"\$@\"
 " bash "$@"
-' bash "$ROOTFS" "$WJY_SRC" "$@"
+' bash "$ROOTFS" "$HOST_REPO" "$CHROOT_WORKDIR" "$CHROOT_CONDA_PREFIX" "$@"

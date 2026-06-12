@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO=${A100_REPO:-/hdZFS/subvol-125-disk-1/cuvs}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO=${A100_REPO:-$(cd -- "$SCRIPT_DIR/.." && pwd)}
 SUITE=${A100_SUITE:-results/range_cagra/paper_full_suite/a100_fast90_full_v3_20260608_complete}
-CHROOT_EXEC=${A100_CHROOT_EXEC:-$REPO/$SUITE/a100_host_chroot_exec.sh}
+CHROOT_EXEC=${A100_CHROOT_EXEC:-$REPO/scripts/a100_host_chroot_exec.sh}
 LOG_DIR=$REPO/$SUITE/logs
 LOG=$LOG_DIR/complete_host_chroot_guarded.log
 PIDFILE=$LOG_DIR/complete_host_chroot_guarded.pid

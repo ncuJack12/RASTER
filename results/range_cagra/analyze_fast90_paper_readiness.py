@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Create the Fast90 paper-readiness report for Range-CAGRA.
 
-The report is deliberately file-backed: it reuses completed Range-CAGRA CSVs
-and the CPU baseline CSVs under /home/wjy/rfann-range-gpu/results, while
-avoiding the 18GB UNIFY all_grouped_results.csv.
+The report is file-backed: it reuses completed Range-CAGRA CSVs and optional
+CPU baseline CSVs from RFANN_RESULTS_ROOT, while avoiding the large UNIFY
+all_grouped_results.csv.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import os
 import pathlib
 import statistics
 from typing import Iterable
@@ -19,7 +20,7 @@ import pandas as pd
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-RFANN_RESULTS = pathlib.Path("/home/wjy/rfann-range-gpu/results")
+RFANN_RESULTS = pathlib.Path(os.environ.get("RFANN_RESULTS_ROOT", ROOT / "external_results" / "rfann"))
 SWEEP_ROOT = ROOT / "results" / "range_cagra" / "segment_tree_param_sweep"
 TARGET_RECALL = 0.90
 

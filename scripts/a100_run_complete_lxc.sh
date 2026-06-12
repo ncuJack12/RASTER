@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO=${A100_REPO:-/wjy/cuvs}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO=${A100_REPO:-$(cd -- "$SCRIPT_DIR/.." && pwd)}
 SUITE=${A100_SUITE:-results/range_cagra/paper_full_suite/a100_fast90_full_v3_20260608_complete}
 LOG_DIR=$REPO/$SUITE/logs
 LOG=$LOG_DIR/complete_lxc_guarded.log

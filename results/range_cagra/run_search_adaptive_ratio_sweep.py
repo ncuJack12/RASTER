@@ -79,8 +79,8 @@ def ld_library_prefix(args):
         entries.extend([base / "lib", base / "targets" / "x86_64-linux" / "lib"])
 
     add_conda_paths(os.environ.get("CONDA_PREFIX"))
-    add_conda_paths("/wjy/conda-envs/cuvs-build-129")
-    add_conda_paths("/home/wjy/miniconda3/envs/faiss-cuvs")
+    for prefix in os.environ.get("RASTER_EXTRA_CONDA_PREFIXES", "").split(os.pathsep):
+        add_conda_paths(prefix)
     return ":".join(str(path) for path in entries if path.exists())
 
 

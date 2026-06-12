@@ -463,7 +463,7 @@ Generated: {dt.datetime.now().isoformat(timespec='seconds')}
 
 ## Scope
 
-- A100 source: `{A100_BASE}` and completed rows from `{A100_DEGREE}` copied from `root@10.0.0.9:/wjy/cuvs`.
+- A100 source: `{A100_BASE}` and completed rows from `{A100_DEGREE}`.
 - Local sources: `{LOCAL_MAIN}`, `{', '.join(LOCAL_POLICY)}`, and `{', '.join(LOCAL_DEGREE)}`.
 - Hardware comparison is restricted to common datasets and common search configs. A100-only datasets are reported separately.
 - For frontier rows, the rule is: for each dataset/workload and recall threshold, choose the row with highest `avg_qps` among rows with `recall_at_k >= threshold`.

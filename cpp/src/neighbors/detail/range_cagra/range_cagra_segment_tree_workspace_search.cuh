@@ -25,11 +25,11 @@
 namespace cuvs::neighbors::range_cagra::detail {
 
 /**
- * Experimental range-CAGRA segment-tree search path with reusable device workspace.
+ * Workspace-backed range-CAGRA segment-tree search path.
  *
  * This header is intentionally separate from range_cagra_segment_tree.cuh so the
- * baseline implementation remains untouched while we test host-overhead
- * reductions.  It keeps the segment-tree graph_slot table resident on device,
+ * baseline implementation remains available while this variant reduces
+ * repeated host-side work.  It keeps the segment-tree graph_slot table resident on device,
  * reuses all search buffers across calls, and can optionally avoid the
  * pre-search D2H counter sync by launching over the reserved task capacity with
  * invalid task slots masked out.
