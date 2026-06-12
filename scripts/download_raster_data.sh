@@ -12,19 +12,23 @@ FORCE=0
 KEEP_ARCHIVES=0
 DOWNLOAD_ONLY=0
 LIST_ONLY=0
+VERIFY_ONLY=0
+VERIFY_LAYOUT=1
 
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/download_raster_data.sh [options]
+  scripts/download_raster_data.sh [options] [DATASET ...]
 
 Options:
   --dataset NAME[,NAME...]   Download selected datasets. Can be repeated.
-  --all                      Download all datasets in the manifest. This is the default.
+  --all                      Download all datasets in the manifest.
   --list                     List datasets in the remote manifest and exit.
   --output-root DIR          Extract into DIR. Default: current directory.
   --cache-dir DIR            Store downloaded parts in DIR. Default: .raster_data.
   --download-only            Download and verify parts, but do not extract.
+  --verify-only              Verify an already extracted local data layout.
+  --no-verify-layout         Skip post-extraction layout validation.
   --keep-archives            Keep downloaded split archives after extraction.
   --force                    Redownload files even if a local verified copy exists.
   -h, --help                 Show this help.
@@ -32,6 +36,12 @@ Options:
 The extracted layout is:
   data/<dataset>/...
   generated_queries/order_range_raw_attr/<dataset>/...
+
+Examples:
+  scripts/download_raster_data.sh --list
+  scripts/download_raster_data.sh msong
+  scripts/download_raster_data.sh msong sift glove-100
+  scripts/download_raster_data.sh --all
 USAGE
 }
 
@@ -90,7 +100,8 @@ manifest = json.loads(Path(sys.argv[1]).read_text())
 for name, info in sorted(manifest["datasets"].items()):
     part_count = len(info["parts"])
     size = sum(part["size"] for part in info["parts"])
-    print(f"{name}\tparts={part_count}\tarchive_bytes={size}")
+    gib = size / 1024**3
+    print(f"{name}\tparts={part_count}\tarchive_gib={gib:.2f}\tarchive_bytes={size}")
 PY
 }
 
@@ -129,6 +140,68 @@ dataset = sys.argv[2]
 for part in manifest["datasets"][dataset]["parts"]:
     print(f"{part['name']}\t{part['size']}\t{part['sha256']}")
 PY
+}
+
+verify_dataset_layout() {
+  local dataset="$1"
+  python3 - "$(manifest_path)" "$OUTPUT_ROOT" "$dataset" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+manifest = json.loads(Path(sys.argv[1]).read_text())
+root = Path(sys.argv[2])
+dataset = sys.argv[3]
+info = manifest["datasets"][dataset]
+required_workload_files = [
+    "queries.npy",
+    "range_ids.npy",
+    "gt.npy",
+    "gt_distances.npy",
+    "metadata.json",
+]
+widths = ["01", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50"]
+workloads = [f"{kind}_w{width}" for kind in ("pos", "ind", "neg") for width in widths]
+
+missing = []
+base = root / info["base_path"]
+query_root = root / info["query_path"]
+if not base.is_file():
+    missing.append(str(base))
+elif base.stat().st_size == 0:
+    missing.append(f"{base} (empty)")
+
+dataset_meta = query_root / "metadata.json"
+if not dataset_meta.is_file():
+    missing.append(str(dataset_meta))
+
+for workload in workloads:
+    workload_dir = query_root / workload
+    if not workload_dir.is_dir():
+        missing.append(str(workload_dir))
+        continue
+    for name in required_workload_files:
+        path = workload_dir / name
+        if not path.is_file():
+            missing.append(str(path))
+
+if missing:
+    print(f"[FAIL] {dataset}: missing {len(missing)} required paths", file=sys.stderr)
+    for path in missing[:40]:
+        print(f"  {path}", file=sys.stderr)
+    if len(missing) > 40:
+        print(f"  ... {len(missing) - 40} more", file=sys.stderr)
+    raise SystemExit(1)
+
+print(f"[OK] {dataset}: base vector file and {len(workloads)} workloads are ready")
+PY
+}
+
+verify_selected_layout() {
+  local dataset
+  for dataset in "$@"; do
+    verify_dataset_layout "$dataset"
+  done
 }
 
 verify_file() {
@@ -172,6 +245,10 @@ download_dataset() {
   echo "  extracting into: ${OUTPUT_ROOT}"
   cat "${part_paths[@]}" | zstd -dc | tar -xf - -C "$OUTPUT_ROOT"
 
+  if [[ "$VERIFY_LAYOUT" -eq 1 ]]; then
+    verify_dataset_layout "$dataset"
+  fi
+
   if [[ "$KEEP_ARCHIVES" -eq 0 ]]; then
     rm -f "${part_paths[@]}"
     rmdir "$dataset_cache" 2>/dev/null || true
@@ -207,6 +284,14 @@ while [[ $# -gt 0 ]]; do
       DOWNLOAD_ONLY=1
       shift
       ;;
+    --verify-only)
+      VERIFY_ONLY=1
+      shift
+      ;;
+    --no-verify-layout)
+      VERIFY_LAYOUT=0
+      shift
+      ;;
     --keep-archives)
       KEEP_ARCHIVES=1
       shift
@@ -219,8 +304,19 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
-    *)
+    --)
+      shift
+      while [[ $# -gt 0 ]]; do
+        DATASETS+=("$1")
+        shift
+      done
+      ;;
+    -*)
       die "unknown argument: $1"
+      ;;
+    *)
+      DATASETS+=("$1")
+      shift
       ;;
   esac
 done
@@ -240,6 +336,13 @@ if [[ "$LIST_ONLY" -eq 1 ]]; then
 fi
 
 mapfile -t SELECTED < <(selected_datasets)
+
+if [[ "$VERIFY_ONLY" -eq 1 ]]; then
+  verify_selected_layout "${SELECTED[@]}"
+  echo "Done."
+  exit 0
+fi
+
 for dataset in "${SELECTED[@]}"; do
   download_dataset "$dataset"
 done

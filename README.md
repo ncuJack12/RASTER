@@ -150,7 +150,13 @@ To download the released RASTER experiment data and queries:
 
 ```bash
 scripts/download_raster_data.sh --list
-scripts/download_raster_data.sh --dataset msong
+scripts/download_raster_data.sh msong
+```
+
+Multiple datasets can be selected in one command:
+
+```bash
+scripts/download_raster_data.sh msong sift glove-100
 ```
 
 To download everything used by the paper-scale suite:
@@ -163,6 +169,14 @@ The downloader retrieves split archives from the public data link, verifies
 SHA256 checksums from the remote manifest, and extracts the files into the
 layout shown above. Use `--output-root <dir>` to extract somewhere other than
 the repository root.
+
+After extraction, the script validates that the base vector file and all 33
+order-range workloads are present for each selected dataset. To check an
+already-downloaded layout without downloading again:
+
+```bash
+scripts/download_raster_data.sh --verify-only msong
+```
 
 ## Run A Workload Benchmark
 
